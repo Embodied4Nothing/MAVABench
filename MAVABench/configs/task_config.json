@@ -1,0 +1,63 @@
+{
+    "rope_cylinder": {
+        "robots": {
+            "franka_1": {
+                "type": "franka",
+                "position": [-0.6, 0, 0.78]
+            },
+            "franka_2": {
+                "type": "franka", 
+                "position": [0.6, 0, 0.78]
+            }
+        },
+        "task": {
+            "workspace": [-0.8, 0.8, -0.5, 0.5, 0.75, 1.5],
+            "random_init": false,
+            "random_ignored_entities": ["cylinder", "rope"],
+            "asset": {
+                "seen_object": ["rope"],
+                "unseen_object": ["rope"],
+                "seen_container": ["cylinder"],
+                "unseen_container": ["cylinder"]
+            },
+            "components": [
+                {
+                    "name": "cylinder",
+                    "xml_path": "obj/meshes/cylinder/cylinder.xml",
+                    "class": "Cylinder",
+                    "position": [0, 0, 0.9],
+                    "randomness": {
+                        "texture": false
+                    }
+                },
+                {
+                    "name": "rope",
+                    "xml_path": "obj/meshes/rope/rope.xml", 
+                    "class": "Rope",
+                    "position": [0, -0.3, 0.85],
+                    "randomness": {
+                        "texture": false
+                    }
+                }
+            ],
+            "scene": {
+                "name": "rope_scene_0"
+            },
+            "instructions": [
+                "两个机械臂协作将绳子缠绕在圆柱体上",
+                "左臂固定绳子一端，右臂将绳子另一端绕过圆柱体",
+                "Wrap the rope around the cylinder using dual robot arms"
+            ],
+            "conditions": {
+                "rope_wrapped": {
+                    "target_entity": "rope",
+                    "target_container": "cylinder",
+                    "wrap_angle_threshold": 180
+                }
+            }
+        },
+        "evaluation": {
+            "max_episode_length": 200
+        }
+    }
+}

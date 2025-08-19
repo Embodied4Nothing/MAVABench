@@ -1,0 +1,233 @@
+{
+    "operating_configs": {
+        "rope_cylinder_wrap": {
+            "task": "rope_cylinder",
+            "description": "两个机械臂协作将绳子缠绕在圆柱体上",
+            "meta_variable": [
+                {
+                    "rope_entity": {
+                        "construction_code": "env.task.entities['rope']"
+                    }
+                },
+                {
+                    "cylinder_entity": {
+                        "construction_code": "env.task.entities['cylinder']"
+                    }
+                },
+                {
+                    "rope_end_1": {
+                        "construction_code": "np.array(env.physics.bind(rope_entity.mjcf_model.worldbody.find('site', 'end_1')).xpos)"
+                    }
+                },
+                {
+                    "rope_end_2": {
+                        "construction_code": "np.array(env.physics.bind(rope_entity.mjcf_model.worldbody.find('site', 'end_2')).xpos)"
+                    }
+                },
+                {
+                    "cylinder_pos": {
+                        "construction_code": "np.array(env.physics.bind(cylinder_entity.mjcf_model.worldbody).xpos)"
+                    }
+                },
+                {
+                    "wrap_radius": {
+                        "construction_code": "0.1"
+                    }
+                },
+                {
+                    "wrap_height": {
+                        "construction_code": "cylinder_pos[2]"
+                    }
+                },
+                {
+                    "wrap_points": {
+                        "construction_code": "[cylinder_pos + np.array([wrap_radius * np.cos(angle), wrap_radius * np.sin(angle), 0]) for angle in np.linspace(0, np.pi, 6)]"
+                    }
+                }
+            ],
+            "meta_code": "franka_1 = env.task.robots['franka_1']\nfranka_2 = env.task.robots['franka_2']\nprint(f'绳子两端位置: {rope_end_1}, {rope_end_2}')\nprint(f'圆柱体位置: {cylinder_pos}')",
+            "operation_sequence": [
+                {
+                    "name": "multi_robot_operation",
+                    "robot_operations": {
+                        "franka_1": [
+                            {
+                                "name": "pick",
+                                "params": {
+                                    "target_pos": "rope_end_1",
+                                    "prior_eulers": "[[-np.pi/2, 0, 0]]",
+                                    "gripper_state": "np.zeros(2)"
+                                }
+                            },
+                            {
+                                "name": "hold_position",
+                                "params": {
+                                    "target_pos": "rope_end_1 + np.array([0, 0, 0.05])",
+                                    "hold_duration": "10.0"
+                                }
+                            }
+                        ],
+                        "franka_2": [
+                            {
+                                "name": "pick", 
+                                "params": {
+                                    "target_pos": "rope_end_2",
+                                    "prior_eulers": "[[-np.pi/2, 0, 0]]",
+                                    "gripper_state": "np.zeros(2)"
+                                }
+                            },
+                            {
+                                "name": "for",
+                                "extracted_variable": "wrap_point",
+                                "iterated_variable": "wrap_points",
+                                "iterated_variable_type": "list",
+                                "iterated_type": "normal",
+                                "sub_operation_sequence": [
+                                    {
+                                        "name": "moveto",
+                                        "params": {
+                                            "target_pos": "wrap_point + np.array([0, 0, 0.1])",
+                                            "target_quat": "euler_to_quaternion(-np.pi/2, 0, 0)",
+                                            "gripper_state": "np.zeros(2)",
+                                            "max_n_substep": "30"
+                                        }
+                                    },
+                                    {
+                                        "name": "moveto",
+                                        "params": {
+                                            "target_pos": "wrap_point",
+                                            "target_quat": "euler_to_quaternion(-np.pi/2, 0, 0)",
+                                            "gripper_state": "np.zeros(2)",
+                                            "max_n_substep": "20"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "name": "moveto",
+                                "params": {
+                                    "target_pos": "cylinder_pos + np.array([0, wrap_radius, 0.15])",
+                                    "target_quat": "euler_to_quaternion(-np.pi/2, 0, 0)",
+                                    "gripper_state": "np.zeros(2)"
+                                }
+                            },
+                            {
+                                "name": "place",
+                                "params": {
+                                    "target_pos": "cylinder_pos + np.array([0, wrap_radius, 0.05])"
+                                }
+                            }
+                        ]
+                    },
+                    "coordination": {
+                        "sync_points": [
+                            {"step": 1, "robots": ["franka_1", "franka_2"], "action": "wait_for_grasp"},
+                            {"step": 2, "robots": ["franka_1"], "action": "hold_steady"}
+                        ],
+                        "timing": {
+                            "franka_1_delay": 0.0,
+                            "franka_2_delay": 1.0
+                        }
+                    }
+                }
+            ]
+        },
+        "rope_cylinder_simple": {
+            "task": "rope_cylinder_simple", 
+            "description": "简化版绳子缠绕任务",
+            "meta_variable": [
+                {
+                    "rope_start": {
+                        "construction_code": "np.array([-0.2, -0.3, 0.85])"
+                    }
+                },
+                {
+                    "rope_end": {
+                        "construction_code": "np.array([0.2, -0.3, 0.85])"
+                    }
+                },
+                {
+                    "cylinder_center": {
+                        "construction_code": "np.array([0, 0, 0.9])"
+                    }
+                },
+                {
+                    "wrap_trajectory": {
+                        "construction_code": "[np.array([0.1*np.cos(t), 0.1*np.sin(t), 0.9]) for t in np.linspace(0, np.pi, 8)]"
+                    }
+                }
+            ],
+            "meta_code": "",
+            "operation_sequence": [
+                {
+                    "name": "sequential_operation",
+                    "sub_operation_sequence": [
+                        {
+                            "name": "robot_action",
+                            "robot_name": "franka_1",
+                            "action": {
+                                "name": "pick",
+                                "params": {
+                                    "target_pos": "rope_start",
+                                    "prior_eulers": "[[-np.pi/2, -np.pi/2, 0]]"
+                                }
+                            }
+                        },
+                        {
+                            "name": "robot_action", 
+                            "robot_name": "franka_2",
+                            "action": {
+                                "name": "pick",
+                                "params": {
+                                    "target_pos": "rope_end",
+                                    "prior_eulers": "[[-np.pi/2, -np.pi/2, 0]]"
+                                }
+                            }
+                        },
+                        {
+                            "name": "robot_action",
+                            "robot_name": "franka_1", 
+                            "action": {
+                                "name": "hold_position",
+                                "params": {
+                                    "target_pos": "rope_start + np.array([0, 0, 0.1])",
+                                    "gripper_state": "np.zeros(2)"
+                                }
+                            }
+                        },
+                        {
+                            "name": "robot_action",
+                            "robot_name": "franka_2",
+                            "action": {
+                                "name": "for",
+                                "extracted_variable": "traj_point",
+                                "iterated_variable": "wrap_trajectory", 
+                                "iterated_variable_type": "list",
+                                "iterated_type": "normal",
+                                "sub_operation_sequence": [
+                                    {
+                                        "name": "moveto",
+                                        "params": {
+                                            "target_pos": "traj_point",
+                                            "target_quat": "euler_to_quaternion(-np.pi/2, 0, 0)",
+                                            "gripper_state": "np.zeros(2)",
+                                            "max_n_substep": "25"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "task_mapping": {
+        "rope_cylinder": "rope_cylinder_wrap",
+        "rope_cylinder_spatial": "rope_cylinder_wrap", 
+        "rope_cylinder_coordination": "rope_cylinder_wrap",
+        "rope_cylinder_simple": "rope_cylinder_simple",
+        "dual_arm_rope_wrap": "rope_cylinder_wrap",
+        "collaborative_rope_manipulation": "rope_cylinder_wrap"
+    }
+}

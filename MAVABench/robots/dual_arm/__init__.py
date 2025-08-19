@@ -1,0 +1,1 @@
+from MAVABench.robots.dual_arm.base import DualArm
